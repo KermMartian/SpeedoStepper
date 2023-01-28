@@ -1,6 +1,8 @@
 /*
- * pico_stepper.cpp - Stepper library for Raspberry Pi Pico - Version 0.1
+ * PicoStepper - Microstepping stepper library for the Raspberry Pi Pico, Version 0.1
+ * Copyright (C) Christopher Mitchell, Ph.D.
  *
+ * Based on Stepper library for Raspberry Pi Pico - Version 0.1
  * Copyright (C) Beshr Kayali
  *
  * Based on Arduino Stepper Library
