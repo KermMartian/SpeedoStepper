@@ -1,0 +1,80 @@
+; https://discord.com/channels/801944326401556512/801948576242597928/810511503161425920
+; <LukeW> @ZodiusInfuser  this is the idea I mentioned yesterday for stepper PWM
+; <LukeW> so the onus is on software to make sure count0 + count1 + count2 = const, but that calculation only needs to be done once per step change (and could be table-driven) so not too bad. The PIO program gives you predictable timing and hands-free microstep hold
+
+.program stepper
+
+; Dual H-bridge stepper driver. Command format:
+; 
+; +--------+--------+--------+--------+--------+--------+
+; | 31  25 | 24  21 | 20  15 | 14  11 | 10   4 | 3    0 |
+; +--------+--------+--------+--------+--------+--------+
+; | count2 | phase2 | count1 | phase1 | count0 | phase0 |
+; +--------+--------+--------+--------+--------+--------+
+; | (7bit) | (4bit) | (6bit) | (4bit) | (7bit) | (4bit) |
+; +--------+--------+--------+--------+--------+--------+
+; 
+; This PIO program accepts step commands from the TX FIFO in the format given
+; above, and executes them in order. When the FIFO runs empty, it will hold the
+; current step/microstep until a new command is written.
+;
+; phase0 and phase2 are two step settings 90deg apart, each with only one coil
+; active, and count0/count2 are used to interpolate between them, for
+; microstepping.
+; 
+; phase1 is an overlapped point where both coils are active, with its width
+; controlled by count1, so that circular cos/sin interpolation can be used to
+; reduce torque ripple. The overlap is needed because cos theta + sin theta >
+; 1 in general, so simple linear interpolation between phase0 and phase2 is
+; insufficient.
+
+.wrap_target
+    pull noblock
+    mov x, osr
+
+    out pins, 4    ; phase0 coil values
+    out y, 7
+count0:            ; Length of phase0 is count0 + 2
+    jmp y-- count0
+
+    out pins, 4    ; phase1 coil values
+    out y, 6
+count1:            ; Length of phase1 is count1 + 2
+    jmp y-- count1
+
+    out pins, 4    ; phase2 coil values
+    out y, 7
+count2:            ; Length of phase2 is count2 + 4
+    jmp y-- count2	
+.wrap
+	
+% c-sdk {
+	
+// Helper function (for use in C program) to initialize this PIO program
+void stepper_program_init(PIO pio, uint stateMachine, uint offset, uint pin1, float div) {
+
+    // Sets up state machine and wrap target. This function is automatically
+    // generated in stepper.pio.h.
+    pio_sm_config c = stepper_program_get_default_config(offset);
+
+    // Allow PIO to control GPIO pin (as output)
+    pio_gpio_init(pio, pin1);
+    pio_gpio_init(pio, pin1 + 1);
+    pio_gpio_init(pio, pin1 + 2);
+    pio_gpio_init(pio, pin1 + 3);
+
+    // Connect pin to OUT pin (control with 'out' instruction)
+    sm_config_set_out_pins(&c, pin1, 4);
+    sm_config_set_set_pins(&c, pin1, 4);
+
+    // Set the pin direction to output (in PIO)
+    pio_sm_set_consecutive_pindirs(pio, stateMachine, pin1, 4, true);
+    
+    // Set the clock divider for the state machine
+    sm_config_set_clkdiv(&c, div);
+
+    // Load configuration and jump to start of the program
+    pio_sm_init(pio, stateMachine, offset, &c);
+}
+
+%}
