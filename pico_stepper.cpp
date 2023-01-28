@@ -35,6 +35,10 @@
 
 static const int MICROSTEPS = 4;
 static int microstepping_store[4][MICROSTEPS][2];
+static const int count0Offset = 2;				// Must decrease phase0 by this to be accurate
+static const int count1Offset = 2;				// Must decrease phase0 by this to be accurate
+static const int count2Offset = 4;				// Must decrease phase0 by this to be accurate
+static const int maxPWM = 142 + count1Offset;	// Max sum of components: ceil(100. * sin(pi/4)) + ceil(100. * cos(pi/4))
 
 /* 8 microsteps
  = {
@@ -147,25 +151,27 @@ void PicoStepper::stepMotor(int step, int microstep) {
   int coil0 = microstepping_store[step][microstep][0];
   int coil2 = microstepping_store[step][microstep][1];
   int phase0 = 0;
-  int count0 = coil0 >= 0 ? coil0 : -coil0;
-
-  int phase1 = 0;
-  int count1 = 0;
+  int count0 = (coil0 >= 0 ? coil0 : -coil0);
+  count0 = (count0 > 0) ? (count0 - count0Offset) : 0;
 
   int phase2 = 0;
   int count2 = coil2 >= 0 ? coil2 : -coil2;
+  count2 = (count2 > 0) ? (count2 - count2Offset) : 0;
 
-	if (coil0 >= 0) {
-		phase0 |= 0b1010;
-	} else {
-		phase0 |= 0b0101;
+	if (coil0 > 0) {
+		phase0 = 0b1000;
+	} else if (coil0 < 0) {
+		phase0 = 0b0100;
 	}
-	if (coil2 >= 0) {
-		phase2 |= 0b0110;
-	} else {
-		phase2 |= 0b1001;
+	if (coil2 > 0) {
+		phase2 = 0b0010;
+	} else if (coil2 < 0) {
+		phase2 = 0b0001;
 	}
-  
+	
+	const int phase1 = phase0 | phase2;
+	int count1 = maxPWM - count0 - count2 - count1Offset;
+
 	pio_sm_put(pio_, sm_, (count2 << 25) | (phase2 << 21) | (count1 << 15) | (phase1 << 11) | (count0 << 4) | phase0);
 
 	gpio_put(PICO_DEFAULT_LED_PIN, ledState_);
