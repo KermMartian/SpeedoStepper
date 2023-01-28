@@ -40,6 +40,7 @@ class PicoStepper {
   PicoStepper (PicoStepperConf conf);
 
   void setSpeed(double speed);
+  static int getMicrosteps();
 
   void step(int total_steps);
 

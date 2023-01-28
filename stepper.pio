@@ -1,6 +1,9 @@
 ; https://discord.com/channels/801944326401556512/801948576242597928/810511503161425920
 ; <LukeW> @ZodiusInfuser  this is the idea I mentioned yesterday for stepper PWM
-; <LukeW> so the onus is on software to make sure count0 + count1 + count2 = const, but that calculation only needs to be done once per step change (and could be table-driven) so not too bad. The PIO program gives you predictable timing and hands-free microstep hold
+; <LukeW> so the onus is on software to make sure count0 + count1 + count2 = const,
+;         but that calculation only needs to be done once per step change (and could
+;         be table-driven) so not too bad. The PIO program gives you predictable
+;         timing and hands-free microstep hold.
 
 .program stepper
 

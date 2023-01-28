@@ -33,7 +33,7 @@
 
 #include "stepper.pio.h"
 
-static const int MICROSTEPS = 4;
+const int MICROSTEPS = 8;
 static int microstepping_store[4][MICROSTEPS][2];
 static const int count0Offset = 2;				// Must decrease phase0 by this to be accurate
 static const int count1Offset = 2;				// Must decrease phase0 by this to be accurate
@@ -68,7 +68,7 @@ PicoStepper::PicoStepper(PicoStepperConf conf) {
   this->current_microstep = 0;
   this->dir = 0;
   this->last_step_us_time = 0;
-  this->delay = 60L * 1000L * 1000L / this->total_steps / conf.initial_speed;
+  setSpeed(conf.initial_speed);
 
     static const float pio_freq = 1000000;
 
@@ -91,9 +91,10 @@ PicoStepper::PicoStepper(PicoStepperConf conf) {
     // Start running our PIO program in the state machine
     pio_sm_set_enabled(pio_, sm_, true);
 
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+}
 
+int PicoStepper::getMicrosteps() {
+	return MICROSTEPS;
 }
 
 void PicoStepper::setSpeed(double speed) {
@@ -173,8 +174,4 @@ void PicoStepper::stepMotor(int step, int microstep) {
 	int count1 = maxPWM - count0 - count2 - count1Offset;
 
 	pio_sm_put(pio_, sm_, (count2 << 25) | (phase2 << 21) | (count1 << 15) | (phase1 << 11) | (count0 << 4) | phase0);
-
-	gpio_put(PICO_DEFAULT_LED_PIN, ledState_);
-	ledState_ = !ledState_;
-
 }
